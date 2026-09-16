@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import secrets
 import hashlib
@@ -12,6 +12,12 @@ Base.metadata.create_all(bind=engine)
 class KeyCreate(BaseModel):
     name: str
     environment: str
+
+class APIKeyResponse(BaseModel):
+    id: int
+    name: str
+    environment: str
+    status: str
 
 keys = [
     {
@@ -32,18 +38,56 @@ def home():
     return {"message": "Welcome to KeyVault"}
 
 
-@app.get("/keys")
+@app.get("/keys", response_model=list[APIKeyResponse])
 def get_keys():
-    return {"keys": keys}
+    db = SessionLocal()
+
+    keys = db.query(APIKey).all()
+
+    db.close()
+
+    return keys
 
 
-@app.get("/keys/{key_id}")
+@app.get("/keys/{key_id}", response_model=APIKeyResponse)
 def get_key(key_id: int):
-    for key in keys:
-        if key["id"] == key_id:
-            return key
 
-    return {"message": "Key not found"}
+    db = SessionLocal()
+
+    key = db.query(APIKey).filter(APIKey.id == key_id).first()
+
+    db.close()
+
+    if key is None:
+        raise HTTPException(status_code=404, detail="Key not found")
+
+    return key
+
+
+@app.patch("/keys/{key_id}/revoke")
+def revoke_key(key_id: int):
+
+    db = SessionLocal()
+
+    key = db.query(APIKey).filter(APIKey.id == key_id).first()
+
+    if key is None:
+        db.close()
+        raise HTTPException(status_code=404, detail="Key not found")
+
+    key.status = "revoked"
+
+    db.commit()
+    db.refresh(key)
+
+    db.close()
+
+    return {
+        "message": "API key revoked",
+        "key_id": key.id,
+        "status": key.status
+    }
+
 
 @app.post("/keys")
 def create_key(key: KeyCreate):
