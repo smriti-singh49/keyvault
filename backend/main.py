@@ -9,7 +9,7 @@ import os
 from dotenv import load_dotenv
 import jwt
 from datetime import datetime, timedelta, timezone
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
 
 
 app = FastAPI()
@@ -33,6 +33,8 @@ def create_access_token(user_id: int):
     return token
 
 security = HTTPBearer()
+
+api_key_security = APIKeyHeader(name="X-API-Key")
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -61,6 +63,36 @@ def get_current_user(
             status_code=401,
             detail="Invalid or expired token"
         )
+
+
+def get_current_api_key(
+    api_key: str = Depends(api_key_security)
+):
+    hashed_key = hashlib.sha256(
+        api_key.encode()
+    ).hexdigest()
+
+    db = SessionLocal()
+
+    key = db.query(APIKey).filter(
+        APIKey.key_hash == hashed_key
+    ).first()
+
+    db.close()
+
+    if key is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key"
+        )
+
+    if key.status != "active":
+        raise HTTPException(
+            status_code=401,
+            detail="API key is inactive"
+        )
+
+    return key
 
 class KeyCreate(BaseModel):
     name: str
@@ -250,4 +282,13 @@ def login_user(user: UserLogin):
         "message": "Login successful",
         "access_token": access_token,
         "token_type": "bearer"
+    }
+
+@app.get("/test-api-key")
+def test_api_key(
+    current_api_key: APIKey = Depends(get_current_api_key)
+):
+    return {
+        "message": "API key is valid",
+        "key_id": current_api_key.id
     }
