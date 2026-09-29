@@ -92,11 +92,21 @@ def get_current_api_key(
             detail="API key is inactive"
         )
 
+    if key.expires_at is not None and key.expires_at <= datetime.now(timezone.utc):
+        db.close()
+        raise HTTPException(
+            status_code=401,
+            detail="API key expired"
+        )
+
+    db.close()
     return key
+
 
 class KeyCreate(BaseModel):
     name: str
     environment: str
+    expires_in_days: int | None = None
 
 class UserCreate(BaseModel):
     username: str
@@ -195,11 +205,19 @@ def create_key(
 
     hashed_key = hashlib.sha256(api_key.encode()).hexdigest()
 
+    expires_at = None
+
+    if key.expires_in_days is not None:
+        expires_at = datetime.now(timezone.utc) + timedelta(
+            days=key.expires_in_days
+        )
+
     new_key = APIKey(
         name=key.name,
         environment=key.environment,
         key_hash=hashed_key,
-        user_id=current_user_id
+        user_id=current_user_id,
+        expires_at=expires_at
     )
 
     db.add(new_key)

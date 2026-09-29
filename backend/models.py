@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, DateTime
 from backend.database import Base
 
 
@@ -11,6 +11,7 @@ class APIKey(Base):
     key_hash = Column(String)
     status = Column(String, default="active")
     user_id = Column(Integer)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
 
 class User(Base):
     __tablename__ = "users"
