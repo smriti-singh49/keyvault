@@ -3,7 +3,7 @@ from pydantic import BaseModel
 import secrets
 import hashlib
 from backend.database import engine, Base, SessionLocal
-from backend.models import APIKey, User
+from backend.models import APIKey, User, APIKeyUsage, APIKeyRateLimit
 from pwdlib import PasswordHash
 import os
 from dotenv import load_dotenv
@@ -78,15 +78,15 @@ def get_current_api_key(
         APIKey.key_hash == hashed_key
     ).first()
 
-    db.close()
-
     if key is None:
+        db.close()
         raise HTTPException(
             status_code=401,
             detail="Invalid API key"
         )
 
     if key.status != "active":
+        db.close()
         raise HTTPException(
             status_code=401,
             detail="API key is inactive"
@@ -99,7 +99,49 @@ def get_current_api_key(
             detail="API key expired"
         )
 
+    rate_limit = db.query(APIKeyRateLimit).filter(
+        APIKeyRateLimit.api_key_id == key.id
+    ).first()
+
+    now = datetime.now(timezone.utc)
+
+    if rate_limit is None:
+        rate_limit = APIKeyRateLimit(
+            api_key_id=key.id,
+            window_start=now,
+            request_count=1
+        )
+        db.add(rate_limit)
+
+    else:
+        elapsed = now - rate_limit.window_start
+
+        if elapsed >= timedelta(minutes=1):
+            rate_limit.window_start = now
+            rate_limit.request_count = 1
+
+        elif rate_limit.request_count >= 5:
+            db.close()
+            raise HTTPException(
+                status_code=429,
+                detail="Rate limit exceeded"
+            )
+
+        else:
+            rate_limit.request_count += 1
+
+    usage = APIKeyUsage(
+        api_key_id=key.id,
+        endpoint="/test-api-key"
+    )
+
+    db.add(usage)
+    db.commit()
+
+    db.refresh(key)
+    db.expunge(key)
     db.close()
+
     return key
 
 
@@ -190,6 +232,44 @@ def revoke_key(
         "message": "API key revoked",
         "key_id": key.id,
         "status": key.status
+    }
+
+
+@app.patch("/keys/{key_id}/rotate")
+def rotate_key(
+    key_id: int,
+    current_user_id: int = Depends(get_current_user)
+):
+    db = SessionLocal()
+
+    key = db.query(APIKey).filter(
+        APIKey.id == key_id,
+        APIKey.user_id == current_user_id
+    ).first()
+
+    if key is None:
+        db.close()
+        raise HTTPException(
+            status_code=404,
+            detail="Key not found"
+        )
+
+    new_api_key = "kv_live_" + secrets.token_urlsafe(32)
+
+    new_hashed_key = hashlib.sha256(
+        new_api_key.encode()
+    ).hexdigest()
+
+    key.key_hash = new_hashed_key
+
+    db.commit()
+    db.refresh(key)
+    db.close()
+
+    return {
+        "message": "API key rotated successfully",
+        "api_key": new_api_key,
+        "key_id": key.id
     }
 
 
