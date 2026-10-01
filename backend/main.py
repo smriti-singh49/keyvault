@@ -10,9 +10,18 @@ from dotenv import load_dotenv
 import jwt
 from datetime import datetime, timedelta, timezone
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
+from fastapi.middleware.cors import CORSMiddleware
 
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 Base.metadata.create_all(bind=engine)
 
@@ -163,6 +172,7 @@ class APIKeyResponse(BaseModel):
     name: str
     environment: str
     status: str
+    expires_at: datetime | None
 
 
 @app.get("/")
