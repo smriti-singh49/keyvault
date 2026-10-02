@@ -130,100 +130,115 @@ function App() {
     <div>
       <h1>KeyVault</h1>
 
-      <h2>Login</h2>
+      {!token ? (
+        <>
+          <h2>Login</h2>
 
-      <form onSubmit={handleLogin}>
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-        />
+          <form onSubmit={handleLogin}>
+            <input
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+            />
 
-        <br />
+            <br />
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
 
-        <br />
+            <br />
 
-        <button type="submit">
-          Login
-        </button>
-      </form>
+            <button type="submit">
+              Login
+            </button>
+          </form>
+        </>
+      ) : (
+        <>
+          <p>Logged in successfully</p>
 
-      {token && <p>Logged in successfully</p>}
+          <button onClick={() => setToken("")}>
+            Logout
+          </button>
+        </>
+      )}
+      
+      
+      {token && (
+        <>
+          <h2>Create API Key</h2>
 
-      <h2>Create API Key</h2>
+          <form onSubmit={handleCreateKey}>
+            <input
+              type="text"
+              placeholder="Key name"
+              value={keyName}
+              onChange={(event) => setKeyName(event.target.value)}
+            />
 
-      <form onSubmit={handleCreateKey}>
-        <input
-          type="text"
-          placeholder="Key name"
-          value={keyName}
-          onChange={(event) => setKeyName(event.target.value)}
-        />
+            <br />
 
-        <br />
+            <select
+              value={environment}
+              onChange={(event) => setEnvironment(event.target.value)}
+            >
+              <option value="development">Development</option>
+              <option value="production">Production</option>
+            </select>
 
-        <select
-          value={environment}
-          onChange={(event) => setEnvironment(event.target.value)}
-        >
-          <option value="development">Development</option>
-          <option value="production">Production</option>
-        </select>
+            <br />
 
-        <br />
+            <input
+              type="number"
+              placeholder="Expires in days"
+              value={expiresInDays}
+              onChange={(event) => setExpiresInDays(event.target.value)}
+            />
 
-        <input
-          type="number"
-          placeholder="Expires in days"
-          value={expiresInDays}
-          onChange={(event) => setExpiresInDays(event.target.value)}
-        />
+            <br />
 
-        <br />
+            <button type="submit">
+              Create API Key
+            </button>
+          </form>
 
-        <button type="submit">
-          Create API Key
-        </button>
-      </form>
+          <h2>My API Keys</h2>
 
-      <h2>My API Keys</h2>
+          {keys.map((key) => (
+            <div key={key.id}>
+              <h3>{key.name}</h3>
 
-      {keys.map((key) => (
-        <div key={key.id}>
-          <h3>{key.name}</h3>
+              <p>Environment: {key.environment}</p>
 
-          <p>Environment: {key.environment}</p>
+              <p>Status: {key.status}</p>
 
-          <p>Status: {key.status}</p>
+              {key.status === "active" && (
+                <>
+                  <button onClick={() => handleRevokeKey(key.id)}>
+                    Revoke
+                  </button>
 
-          {key.status === "active" && (
-            <>
-              <button onClick={() => handleRevokeKey(key.id)}>
-                Revoke
-              </button>
+                  <button onClick={() => handleRotateKey(key.id)}>
+                    Rotate
+                  </button>
+                </>
+              )}
 
-              <button onClick={() => handleRotateKey(key.id)}>
-                Rotate
-              </button>
-            </>
-          )}
-
-          <p>
-            Expires:{" "}
-            {key.expires_at
-              ? new Date(key.expires_at).toLocaleDateString()
-              : "Never"}
-          </p>
-        </div>
-      ))}
+              <p>
+                Expires:{" "}
+                {key.expires_at
+                  ? new Date(key.expires_at).toLocaleDateString()
+                  : "Never"}
+              </p>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   )
 }
