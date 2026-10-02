@@ -8,6 +8,7 @@ function App() {
   const [keyName, setKeyName] = useState("")
   const [environment, setEnvironment] = useState("development")
   const [expiresInDays, setExpiresInDays] = useState("")
+  const [scopes, setScopes] = useState([])
 
   const handleLogin = async (event) => {
     event.preventDefault()
@@ -102,7 +103,8 @@ function App() {
       environment: environment,
       expires_in_days: expiresInDays
         ? Number(expiresInDays)
-        : null
+        : null,
+      scopes: scopes
     })
   })
 
@@ -113,6 +115,7 @@ function App() {
 
       setKeyName("")
       setExpiresInDays("")
+      setScopes([])
 
       fetchKeys()
     }
@@ -201,6 +204,54 @@ function App() {
             />
 
             <br />
+            <div>
+              <p>Permissions</p>
+
+              <label>
+                <input
+                  type="checkbox"
+                  checked={scopes.includes("read")}
+                  onChange={(event) => {
+                    if (event.target.checked) {
+                      setScopes([...scopes, "read"])
+                    } else {
+                      setScopes(scopes.filter((scope) => scope !== "read"))
+                    }
+                  }}
+                />
+                Read
+              </label>
+
+              <label>
+                <input
+                  type="checkbox"
+                  checked={scopes.includes("write")}
+                  onChange={(event) => {
+                    if (event.target.checked) {
+                      setScopes([...scopes, "write"])
+                    } else {
+                      setScopes(scopes.filter((scope) => scope !== "write"))
+                    }
+                  }}
+                />
+                Write
+              </label>
+
+              <label>
+                <input
+                  type="checkbox"
+                  checked={scopes.includes("delete")}
+                  onChange={(event) => {
+                    if (event.target.checked) {
+                      setScopes([...scopes, "delete"])
+                    } else {
+                      setScopes(scopes.filter((scope) => scope !== "delete"))
+                    }
+                  }}
+                />
+                Delete
+              </label>
+            </div>
 
             <button type="submit">
               Create API Key
@@ -216,6 +267,16 @@ function App() {
               <p>Environment: {key.environment}</p>
 
               <p>Status: {key.status}</p>
+
+              <p>Scopes:</p>
+
+              <div>
+                {key.scopes.map((scope) => (
+                  <span key={scope} className="scope-badge">
+                    {scope}
+                  </span>
+                ))}
+              </div>
 
               {key.status === "active" && (
                 <>
