@@ -15,6 +15,14 @@ class APIKey(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True)
 
 
+class APIKeyScope(Base):
+    __tablename__ = "api_key_scopes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    api_key_id = Column(Integer, nullable=False)
+    scope = Column(String, nullable=False)
+
+
 class APIKeyUsage(Base):
     __tablename__ = "api_key_usage"
 

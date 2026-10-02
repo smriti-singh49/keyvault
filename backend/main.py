@@ -3,7 +3,7 @@ from pydantic import BaseModel
 import secrets
 import hashlib
 from backend.database import engine, Base, SessionLocal
-from backend.models import APIKey, User, APIKeyUsage, APIKeyRateLimit
+from backend.models import APIKey, User, APIKeyUsage, APIKeyRateLimit, APIKeyScope
 from pwdlib import PasswordHash
 import os
 from dotenv import load_dotenv
@@ -11,6 +11,8 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
+
+ALLOWED_SCOPES = {"read", "write", "delete"}
 
 
 app = FastAPI()
@@ -154,10 +156,45 @@ def get_current_api_key(
     return key
 
 
+def require_scope(required_scope: str):
+    def scope_checker(
+        current_api_key: APIKey = Depends(get_current_api_key)
+    ):
+        db = SessionLocal()
+
+        scope = db.query(APIKeyScope).filter(
+            APIKeyScope.api_key_id == current_api_key.id,
+            APIKeyScope.scope == required_scope
+        ).first()
+
+        db.close()
+
+        if scope is None:
+            raise HTTPException(
+                status_code=403,
+                detail="Insufficient scope"
+            )
+
+        return current_api_key
+
+    return scope_checker
+
+
+@app.get("/protected-read")
+def protected_read(
+    current_api_key: APIKey = Depends(require_scope("read"))
+):
+    return {
+        "message": "You have read access",
+        "key_id": current_api_key.id
+    }
+
+
 class KeyCreate(BaseModel):
     name: str
     environment: str
     expires_in_days: int | None = None
+    scopes: list[str] = []
 
 class UserCreate(BaseModel):
     username: str
@@ -173,6 +210,7 @@ class APIKeyResponse(BaseModel):
     environment: str
     status: str
     expires_at: datetime | None
+    scopes: list[str]
 
 
 @app.get("/")
@@ -188,9 +226,27 @@ def get_keys(current_user_id: int = Depends(get_current_user)):
         APIKey.user_id == current_user_id
     ).all()
 
+    result = []
+
+    for key in keys:
+        scopes = db.query(APIKeyScope).filter(
+            APIKeyScope.api_key_id == key.id
+        ).all()
+
+        result.append(
+            APIKeyResponse(
+                id=key.id,
+                name=key.name,
+                environment=key.environment,
+                status=key.status,
+                expires_at=key.expires_at,
+                scopes=[scope.scope for scope in scopes]
+            )
+        )
+
     db.close()
 
-    return keys
+    return result
 
 
 @app.get("/keys/{key_id}", response_model=APIKeyResponse)
@@ -206,12 +262,29 @@ def get_key(
         APIKey.user_id == current_user_id
     ).first()
 
+    if key is None:
+        db.close()
+        raise HTTPException(
+            status_code=404,
+            detail="Key not found"
+        )
+
+    scopes = db.query(APIKeyScope).filter(
+        APIKeyScope.api_key_id == key.id
+    ).all()
+
+    result = APIKeyResponse(
+        id=key.id,
+        name=key.name,
+        environment=key.environment,
+        status=key.status,
+        expires_at=key.expires_at,
+        scopes=[scope.scope for scope in scopes]
+    )
+
     db.close()
 
-    if key is None:
-        raise HTTPException(status_code=404, detail="Key not found")
-
-    return key
+    return result
 
 
 @app.patch("/keys/{key_id}/revoke")
@@ -288,6 +361,12 @@ def create_key(
     key: KeyCreate,
     current_user_id: int = Depends(get_current_user)
 ):
+    for scope in key.scopes:
+        if scope not in ALLOWED_SCOPES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid scope: {scope}"
+            )
 
     db = SessionLocal()
 
@@ -313,6 +392,16 @@ def create_key(
     db.add(new_key)
     db.commit()
     db.refresh(new_key)
+
+    for scope in key.scopes:
+        db.add(
+            APIKeyScope(
+                api_key_id=new_key.id,
+                scope=scope
+            )
+        )
+
+    db.commit()
 
     db.close()
 
