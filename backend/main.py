@@ -3,7 +3,7 @@ from pydantic import BaseModel
 import secrets
 import hashlib
 from backend.database import engine, Base, SessionLocal
-from backend.models import APIKey, User, APIKeyUsage, APIKeyRateLimit, APIKeyScope
+from backend.models import APIKey, User, APIKeyUsage, APIKeyRateLimit, APIKeyScope, AuditLog
 from pwdlib import PasswordHash
 import os
 from dotenv import load_dotenv
@@ -212,6 +212,35 @@ class APIKeyResponse(BaseModel):
     expires_at: datetime | None
     scopes: list[str]
 
+class AuditLogResponse(BaseModel):
+    id: int
+    api_key_id: int | None
+    action: str
+    details: str | None
+    created_at: datetime
+
+class UsageResponse(BaseModel):
+    id: int
+    api_key_id: int
+    endpoint: str | None
+    used_at: datetime
+
+def create_audit_log(
+    db,
+    user_id: int,
+    action: str,
+    api_key_id: int | None = None,
+    details: str | None = None
+):
+    audit_log = AuditLog(
+        user_id=user_id,
+        api_key_id=api_key_id,
+        action=action,
+        details=details
+    )
+
+    db.add(audit_log)
+
 
 @app.get("/")
 def home():
@@ -287,6 +316,71 @@ def get_key(
     return result
 
 
+@app.get("/audit-logs", response_model=list[AuditLogResponse])
+def get_audit_logs(
+    current_user_id: int = Depends(get_current_user)
+):
+    db = SessionLocal()
+
+    logs = db.query(AuditLog).filter(
+        AuditLog.user_id == current_user_id
+    ).order_by(
+        AuditLog.created_at.desc()
+    ).all()
+
+    result = []
+
+    for log in logs:
+        result.append(
+            AuditLogResponse(
+                id=log.id,
+                api_key_id=log.api_key_id,
+                action=log.action,
+                details=log.details,
+                created_at=log.created_at
+            )
+        )
+
+    db.close()
+
+    return result
+
+
+@app.get("/usage", response_model=list[UsageResponse])
+def get_usage(
+    current_user_id: int = Depends(get_current_user)
+):
+    db = SessionLocal()
+
+    user_keys = db.query(APIKey).filter(
+        APIKey.user_id == current_user_id
+    ).all()
+
+    user_key_ids = [key.id for key in user_keys]
+
+    usage_logs = db.query(APIKeyUsage).filter(
+        APIKeyUsage.api_key_id.in_(user_key_ids)
+    ).order_by(
+        APIKeyUsage.used_at.desc()
+    ).all()
+
+    result = []
+
+    for usage in usage_logs:
+        result.append(
+            UsageResponse(
+                id=usage.id,
+                api_key_id=usage.api_key_id,
+                endpoint=usage.endpoint,
+                used_at=usage.used_at
+            )
+        )
+
+    db.close()
+
+    return result
+
+
 @app.patch("/keys/{key_id}/revoke")
 def revoke_key(
     key_id: int,
@@ -306,9 +400,16 @@ def revoke_key(
 
     key.status = "revoked"
 
+    create_audit_log(
+        db=db,
+        user_id=current_user_id,
+        action="REVOKE",
+        api_key_id=key.id,
+        details=f"Revoked API key: {key.name}"
+    )
+
     db.commit()
     db.refresh(key)
-
     db.close()
 
     return {
@@ -344,6 +445,14 @@ def rotate_key(
     ).hexdigest()
 
     key.key_hash = new_hashed_key
+
+    create_audit_log(
+        db=db,
+        user_id=current_user_id,
+        action="ROTATE",
+        api_key_id=key.id,
+        details=f"Rotated API key: {key.name}"
+    )
 
     db.commit()
     db.refresh(key)
@@ -400,6 +509,14 @@ def create_key(
                 scope=scope
             )
         )
+
+    create_audit_log(
+        db=db,
+        user_id=current_user_id,
+        action="CREATE",
+        api_key_id=new_key.id,
+        details=f"Created API key: {new_key.name}"
+    )
 
     db.commit()
 

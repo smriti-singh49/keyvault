@@ -5,6 +5,8 @@ function App() {
   const [password, setPassword] = useState("")
   const [token, setToken] = useState("")
   const [keys, setKeys] = useState([])
+  const [auditLogs, setAuditLogs] = useState([])
+  const [usageLogs, setUsageLogs] = useState([])
   const [keyName, setKeyName] = useState("")
   const [environment, setEnvironment] = useState("development")
   const [expiresInDays, setExpiresInDays] = useState("")
@@ -45,6 +47,34 @@ function App() {
     setKeys(data)
   }
 
+  const fetchAuditLogs = async () => {
+    const response = await fetch(
+      "http://127.0.0.1:8000/audit-logs",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    )
+
+    const data = await response.json()
+    setAuditLogs(data)
+  }
+
+  const fetchUsageLogs = async () => {
+    const response = await fetch(
+      "http://127.0.0.1:8000/usage",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    )
+
+    const data = await response.json()
+    setUsageLogs(data)
+  }
+
   const handleRevokeKey = async (keyId) => {
     const response = await fetch(
       `http://127.0.0.1:8000/keys/${keyId}/revoke`,
@@ -60,7 +90,9 @@ function App() {
 
     if (response.ok) {
       alert("API key revoked")
+
       fetchKeys()
+      fetchAuditLogs()
     } else {
       alert(data.detail)
     }
@@ -82,7 +114,9 @@ function App() {
 
     if (response.ok) {
       alert(`Your new API key is:\n\n${data.api_key}`)
+
       fetchKeys()
+      fetchAuditLogs()
     } else {
       alert(data.detail)
     }
@@ -110,24 +144,27 @@ function App() {
 
   const data = await response.json()
 
-    if (response.ok) {
-      alert(`Your new API key is:\n\n${data.api_key}`)
+  if (response.ok) {
+    alert(`Your new API key is:\n\n${data.api_key}`)
 
-      setKeyName("")
-      setExpiresInDays("")
-      setScopes([])
-
-      fetchKeys()
-    }
-  }
-
-  useEffect(() => {
-    if (!token) {
-      return
-    }
+    setKeyName("")
+    setExpiresInDays("")
+    setScopes([])
 
     fetchKeys()
-  }, [token])
+    fetchAuditLogs()
+  }
+}
+
+useEffect(() => {
+  if (!token) {
+    return
+  }
+
+  fetchKeys()
+  fetchAuditLogs()
+  fetchUsageLogs()
+}, [token])
 
   return (
     <div>
@@ -298,6 +335,40 @@ function App() {
               </p>
             </div>
           ))}
+
+          <h2>Recent Activity</h2>
+
+          {auditLogs.map((log) => (
+            <div key={log.id}>
+              <h3>{log.action}</h3>
+
+              <p>{log.details}</p>
+
+              <p>
+                {new Date(log.created_at).toLocaleString()}
+              </p>
+            </div>
+          ))}
+
+          <h2>API Usage</h2>
+
+          {usageLogs.map((usage) => (
+            <div key={usage.id}>
+              <p>
+                API Key ID: {usage.api_key_id}
+              </p>
+
+              <p>
+                Endpoint: {usage.endpoint}
+              </p>
+
+              <p>
+                Used at:{" "}
+                {new Date(usage.used_at).toLocaleString()}
+              </p>
+            </div>
+          ))}
+
         </>
       )}
     </div>
