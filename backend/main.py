@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Response, Request
 from pydantic import BaseModel
 import secrets
 import hashlib
@@ -9,7 +9,7 @@ import os
 from dotenv import load_dotenv
 import jwt
 from datetime import datetime, timedelta, timezone
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
+from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 
 ALLOWED_SCOPES = {"read", "write", "delete"}
@@ -43,14 +43,17 @@ def create_access_token(user_id: int):
 
     return token
 
-security = HTTPBearer()
 
 api_key_security = APIKeyHeader(name="X-API-Key")
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    token = credentials.credentials
+def get_current_user(request: Request):
+    token = request.cookies.get("access_token")
+
+    if token is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Not authenticated"
+        )
 
     try:
         payload = jwt.decode(
@@ -563,7 +566,10 @@ def register_user(user: UserCreate):
 
 
 @app.post("/login")
-def login_user(user: UserLogin):
+def login_user(
+    user: UserLogin,
+    response: Response
+):
 
     db = SessionLocal()
 
@@ -590,13 +596,43 @@ def login_user(user: UserLogin):
 
     access_token = create_access_token(db_user.id)
 
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=1800
+    )
+
     db.close()
 
     return {
-        "message": "Login successful",
-        "access_token": access_token,
-        "token_type": "bearer"
+        "message": "Login successful"
     }
+
+
+
+@app.post("/logout")
+def logout(response: Response):
+    response.delete_cookie(
+        key="access_token"
+    )
+
+    return {
+        "message": "Logout successful"
+    }
+
+
+@app.get("/me")
+def get_me(
+    current_user_id: int = Depends(get_current_user)
+):
+    return {
+        "authenticated": True,
+        "user_id": current_user_id
+    }
+
 
 @app.get("/test-api-key")
 def test_api_key(
