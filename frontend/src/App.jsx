@@ -15,11 +15,12 @@ function App() {
   const handleLogin = async (event) => {
     event.preventDefault()
 
-    const response = await fetch("http://127.0.0.1:8000/login", {
+    const response = await fetch("http://localhost:8000/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
+      credentials: "include",
       body: JSON.stringify({
         username: username,
         password: password
@@ -29,7 +30,7 @@ function App() {
     const data = await response.json()
 
     if (response.ok) {
-      setToken(data.access_token)
+      setToken("authenticated")
       console.log("Login successful")
     } else {
       console.log(data.detail)
@@ -37,52 +38,59 @@ function App() {
   }
 
   const fetchKeys = async () => {
-    const response = await fetch("http://127.0.0.1:8000/keys", {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+    const response = await fetch("http://localhost:8000/keys", {
+      credentials: "include"
     })
 
     const data = await response.json()
-    setKeys(data)
+
+    if (response.ok) {
+      setKeys(data)
+    } else {
+      setKeys([])
+    }
   }
 
   const fetchAuditLogs = async () => {
     const response = await fetch(
-      "http://127.0.0.1:8000/audit-logs",
+      "http://localhost:8000/audit-logs",
       {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        credentials: "include"
       }
     )
 
     const data = await response.json()
-    setAuditLogs(data)
+
+    if (response.ok) {
+      setAuditLogs(data)
+    } else {
+      setAuditLogs([])
+    }
   }
 
   const fetchUsageLogs = async () => {
     const response = await fetch(
-      "http://127.0.0.1:8000/usage",
+      "http://localhost:8000/usage",
       {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        credentials: "include"
       }
     )
 
     const data = await response.json()
-    setUsageLogs(data)
+
+    if (response.ok) {
+      setUsageLogs(data)
+    } else {
+      setUsageLogs([])
+    }
   }
 
   const handleRevokeKey = async (keyId) => {
     const response = await fetch(
-      `http://127.0.0.1:8000/keys/${keyId}/revoke`,
+      `http://localhost:8000/keys/${keyId}/revoke`,
       {
         method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        credentials: "include"
       }
     )
 
@@ -101,12 +109,10 @@ function App() {
 
   const handleRotateKey = async (keyId) => {
     const response = await fetch(
-      `http://127.0.0.1:8000/keys/${keyId}/rotate`,
+      `http://localhost:8000/keys/${keyId}/rotate`,
       {
         method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        credentials: "include"
       }
     )
 
@@ -126,12 +132,12 @@ function App() {
   const handleCreateKey = async (event) => {
   event.preventDefault()
 
-  const response = await fetch("http://127.0.0.1:8000/keys", {
+  const response = await fetch("http://localhost:8000/keys", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
+      "Content-Type": "application/json"
     },
+    credentials: "include",
     body: JSON.stringify({
       name: keyName,
       environment: environment,
@@ -155,6 +161,24 @@ function App() {
     fetchAuditLogs()
   }
 }
+
+
+useEffect(() => {
+  const checkSession = async () => {
+    const response = await fetch(
+      "http://localhost:8000/me",
+      {
+        credentials: "include"
+      }
+    )
+
+    if (response.ok) {
+      setToken("authenticated")
+    }
+  }
+
+  checkSession()
+}, [])
 
 useEffect(() => {
   if (!token) {
@@ -202,7 +226,16 @@ useEffect(() => {
         <>
           <p>Logged in successfully</p>
 
-          <button onClick={() => setToken("")}>
+          <button
+            onClick={async () => {
+              await fetch("http://localhost:8000/logout", {
+                method: "POST",
+                credentials: "include"
+              })
+
+              setToken("")
+            }}
+          >
             Logout
           </button>
         </>
