@@ -11,6 +11,10 @@ function App() {
   const [environment, setEnvironment] = useState("development")
   const [expiresInDays, setExpiresInDays] = useState("")
   const [scopes, setScopes] = useState([])
+  const [revealKeyId, setRevealKeyId] = useState(null)
+  const [revealPassword, setRevealPassword] = useState("")
+  const [revealedKey, setRevealedKey] = useState("")
+  const [showRevealModal, setShowRevealModal] = useState(false)
 
   const handleLogin = async (event) => {
     event.preventDefault()
@@ -123,6 +127,32 @@ function App() {
 
       fetchKeys()
       fetchAuditLogs()
+    } else {
+      alert(data.detail)
+    }
+  }
+
+
+  const handleRevealKey = async () => {
+    const response = await fetch(
+      `http://localhost:8000/keys/${revealKeyId}/reveal`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          password: revealPassword
+        })
+      }
+    )
+
+    const data = await response.json()
+
+    if (response.ok) {
+      setRevealedKey(data.api_key)
+      setRevealPassword("")
     } else {
       alert(data.detail)
     }
@@ -350,6 +380,17 @@ useEffect(() => {
 
               {key.status === "active" && (
                 <>
+                  <button
+                    onClick={() => {
+                      setRevealKeyId(key.id)
+                      setRevealedKey("")
+                      setRevealPassword("")
+                      setShowRevealModal(true)
+                    }}
+                  >
+                    Reveal
+                  </button>
+
                   <button onClick={() => handleRevokeKey(key.id)}>
                     Revoke
                   </button>
@@ -401,6 +442,72 @@ useEffect(() => {
               </p>
             </div>
           ))}
+
+          {showRevealModal && (
+            <div>
+              <div>
+                <h2>Reveal API Key</h2>
+
+                {!revealedKey ? (
+                  <>
+                    <p>
+                      Enter your password to reveal this API key.
+                    </p>
+
+                    <input
+                      type="password"
+                      placeholder="Password"
+                      value={revealPassword}
+                      onChange={(event) =>
+                        setRevealPassword(event.target.value)
+                      }
+                    />
+
+                    <div>
+                      <button
+                        onClick={() => {
+                          setShowRevealModal(false)
+                          setRevealPassword("")
+                        }}
+                      >
+                        Cancel
+                      </button>
+
+                      <button onClick={handleRevealKey}>
+                        Reveal Key
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p>API key:</p>
+
+                    <div>
+                      {revealedKey}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(revealedKey)
+                        alert("API key copied")
+                      }}
+                    >
+                      Copy
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setRevealedKey("")
+                        setShowRevealModal(false)
+                      }}
+                    >
+                      Done
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
         </>
       )}
