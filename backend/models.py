@@ -10,6 +10,7 @@ class APIKey(Base):
     name = Column(String)
     environment = Column(String)
     key_hash = Column(String)
+    encrypted_key = Column(String, nullable=True)
     status = Column(String, default="active")
     user_id = Column(Integer)
     expires_at = Column(DateTime(timezone=True), nullable=True)

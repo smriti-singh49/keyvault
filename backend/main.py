@@ -11,6 +11,7 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
+from backend.security import encrypt_api_key, decrypt_api_key
 
 ALLOWED_SCOPES = {"read", "write", "delete"}
 
@@ -207,6 +208,9 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+class RevealKeyRequest(BaseModel):
+    password: str
+
 class APIKeyResponse(BaseModel):
     id: int
     name: str
@@ -317,6 +321,84 @@ def get_key(
     db.close()
 
     return result
+
+
+@app.post("/keys/{key_id}/reveal")
+def reveal_api_key(
+    key_id: int,
+    data: RevealKeyRequest,
+    current_user_id: int = Depends(get_current_user)
+):
+    db = SessionLocal()
+
+    key = db.query(APIKey).filter(
+        APIKey.id == key_id,
+        APIKey.user_id == current_user_id
+    ).first()
+
+    if key is None:
+        db.close()
+        raise HTTPException(
+            status_code=404,
+            detail="Key not found"
+        )
+
+    if key.encrypted_key is None:
+        db.close()
+        raise HTTPException(
+            status_code=400,
+            detail="This API key cannot be revealed. Rotate it first."
+        )
+
+    user = db.query(User).filter(
+        User.id == current_user_id
+    ).first()
+
+    if user is None:
+        db.close()
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    password_valid = password_hash.verify(
+        data.password,
+        user.password_hash
+    )
+
+    if not password_valid:
+        create_audit_log(
+            db=db,
+            user_id=current_user_id,
+            action="REVEAL_FAILED",
+            api_key_id=key.id,
+            details=f"Failed reveal attempt for API key: {key.name}"
+        )
+
+        db.commit()
+        db.close()
+
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect password"
+        )
+
+    raw_api_key = decrypt_api_key(key.encrypted_key)
+
+    create_audit_log(
+        db=db,
+        user_id=current_user_id,
+        action="REVEAL",
+        api_key_id=key.id,
+        details=f"Revealed API key: {key.name}"
+    )
+
+    db.commit()
+    db.close()
+
+    return {
+        "api_key": raw_api_key
+    }
 
 
 @app.get("/audit-logs", response_model=list[AuditLogResponse])
@@ -449,6 +531,9 @@ def rotate_key(
 
     key.key_hash = new_hashed_key
 
+    new_encrypted_key = encrypt_api_key(new_api_key)
+    key.encrypted_key = new_encrypted_key
+
     create_audit_log(
         db=db,
         user_id=current_user_id,
@@ -486,6 +571,8 @@ def create_key(
 
     hashed_key = hashlib.sha256(api_key.encode()).hexdigest()
 
+    encrypted_key = encrypt_api_key(api_key)
+
     expires_at = None
 
     if key.expires_in_days is not None:
@@ -497,6 +584,7 @@ def create_key(
         name=key.name,
         environment=key.environment,
         key_hash=hashed_key,
+        encrypted_key=encrypted_key,
         user_id=current_user_id,
         expires_at=expires_at
     )
