@@ -653,6 +653,51 @@ def register_user(user: UserCreate):
     }
 
 
+@app.get("/check-username")
+def check_username(username: str):
+    db = SessionLocal()
+
+    username = username.strip()
+
+    if not username:
+        db.close()
+        return {
+            "available": False,
+            "message": "Username is required"
+        }
+
+    if len(username) < 3:
+        db.close()
+        return {
+            "available": False,
+            "message": "Username must be at least 3 characters"
+        }
+
+    if len(username) > 20:
+        db.close()
+        return {
+            "available": False,
+            "message": "Username must be at most 20 characters"
+        }
+
+    existing_user = db.query(User).filter(
+        User.username == username
+    ).first()
+
+    db.close()
+
+    if existing_user:
+        return {
+            "available": False,
+            "message": "Username is already taken"
+        }
+
+    return {
+        "available": True,
+        "message": "Username is available"
+    }
+
+
 @app.post("/login")
 def login_user(
     user: UserLogin,
@@ -713,12 +758,24 @@ def logout(response: Response):
 
 
 @app.get("/me")
-def get_me(
-    current_user_id: int = Depends(get_current_user)
-):
+def get_me(current_user_id: int = Depends(get_current_user)):
+    db = SessionLocal()
+
+    user = db.query(User).filter(
+        User.id == current_user_id
+    ).first()
+
+    db.close()
+
+    if user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
     return {
-        "authenticated": True,
-        "user_id": current_user_id
+        "user_id": user.id,
+        "username": user.username
     }
 
 
