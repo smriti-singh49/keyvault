@@ -18,9 +18,11 @@ ALLOWED_SCOPES = {"read", "write", "delete"}
 
 app = FastAPI()
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -729,13 +731,15 @@ def login_user(
 
     access_token = create_access_token(db_user.id)
 
+    IS_PRODUCTION = os.getenv("ENVIRONMENT") == "production"
+
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=False,
-        samesite="lax",
-        max_age=1800
+        secure=IS_PRODUCTION,
+        samesite="none" if IS_PRODUCTION else "lax",
+        max_age=1800,
     )
 
     db.close()
