@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+src/App.backup.jsx
+src/index.backup.css
 
 # Editor directories and files
 .vscode/*

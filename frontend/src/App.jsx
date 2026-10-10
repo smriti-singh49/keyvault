@@ -11,6 +11,9 @@ const NAV_ITEMS = [
 
 const SCOPE_OPTIONS = ["read", "write", "delete"]
 
+// TODO: replace with your real repository URL before deploying.
+const GITHUB_URL = "https://github.com/smriti-singh49/keyvault"
+
 function Icon({ name, size = 17 }) {
   const common = {
     width: size,
@@ -132,6 +135,12 @@ function Icon({ name, size = 17 }) {
       <>
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7v5l3 2" />
+      </>
+    ),
+    book: (
+      <>
+        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z" />
+        <path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5" />
       </>
     )
   }
@@ -357,6 +366,10 @@ function App() {
   const [checkingUsername, setCheckingUsername] = useState(false)
   const [authenticated, setAuthenticated] = useState(false)
   const [loadingSession, setLoadingSession] = useState(true)
+  // Public pages: "landing" | "docs" | null.
+  // null means the normal app: sign-in/register when logged out,
+  // the dashboard when logged in.
+  const [publicView, setPublicView] = useState("landing")
 
   const [activePage, setActivePage] = useState("dashboard")
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -422,6 +435,7 @@ function App() {
 
           setUsername(data.username)
           setAuthenticated(true)
+          setPublicView(null)
         }
       } catch {
         // Backend may not be running.
@@ -543,6 +557,7 @@ function App() {
 
       if (response.ok) {
         setAuthenticated(true)
+        setPublicView(null)
         setPassword("")
         showToast("Signed in successfully")
       } else {
@@ -660,6 +675,7 @@ function App() {
     setAuditLogs([])
     setUsageLogs([])
     setActivePage("dashboard")
+    setPublicView("landing")
     showToast("Signed out")
   }
 
@@ -1152,6 +1168,33 @@ function App() {
   }
 
 
+  // Opens the public landing or documentation page. This never signs
+  // the user out; the session cookie and authenticated state are kept.
+  const openPublicView = (view) => {
+    // Never leave a revealed secret waiting behind the public pages.
+    setRevealedSecret(null)
+    setRevealPassword("")
+    setMobileMenuOpen(false)
+    setPublicView(view)
+    window.scrollTo({ top: 0 })
+  }
+
+
+  // Returns an authenticated user to the dashboard they left.
+  const openDashboard = () => {
+    setPublicView(null)
+    window.scrollTo({ top: 0 })
+  }
+
+
+  // Opens the existing sign-in or registration form.
+  const openAuth = (registering) => {
+    setIsRegistering(registering)
+    setPassword("")
+    setPublicView(null)
+  }
+
+
   /* -------------------------------------------------------
      LOGIN
   ------------------------------------------------------- */
@@ -1168,12 +1211,45 @@ function App() {
   }
 
 
+  if (publicView === "landing") {
+    return (
+      <LandingPage
+        authenticated={authenticated}
+        onHome={() => openPublicView("landing")}
+        onDocs={() => openPublicView("docs")}
+        onSignIn={() => openAuth(false)}
+        onGetStarted={() => openAuth(true)}
+        onDashboard={openDashboard}
+      />
+    )
+  }
+
+
+  if (publicView === "docs") {
+    return (
+      <DocsPage
+        authenticated={authenticated}
+        onHome={() => openPublicView("landing")}
+        onDocs={() => openPublicView("docs")}
+        onSignIn={() => openAuth(false)}
+        onGetStarted={() => openAuth(true)}
+        onDashboard={openDashboard}
+      />
+    )
+  }
+
+
   if (!authenticated) {
     return (
       <div className="login-page">
         <div className="login-panel">
 
-          <div className="login-brand">
+          <button
+            type="button"
+            className="login-brand login-brand-button"
+            onClick={() => openPublicView("landing")}
+            aria-label="Back to KeyVault home"
+          >
             <img
               src="/Keyvault.png"
               alt="KeyVault"
@@ -1181,7 +1257,7 @@ function App() {
             />
 
             <span>KeyVault</span>
-          </div>
+          </button>
 
           <div className="login-heading">
             <p className="eyebrow">
@@ -1311,6 +1387,16 @@ function App() {
             Access is protected by an HttpOnly session cookie.
           </p>
 
+          <p className="login-docs-link">
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => openPublicView("docs")}
+            >
+              Read the documentation
+            </button>
+          </p>
+
         </div>
       </div>
     )
@@ -1323,15 +1409,20 @@ function App() {
       {/* MOBILE TOP BAR */}
       <header className="mobile-topbar">
 
-        <div className="brand">
+        <button
+          type="button"
+          className="brand brand-button"
+          onClick={() => openPublicView("landing")}
+          aria-label="KeyVault home"
+        >
           <img
             src="/Keyvault.png"
-            alt="KeyVault"
+            alt=""
             className="brand-logo"
           />
 
           <span>KeyVault</span>
-        </div>
+        </button>
 
         <button
           className="icon-button"
@@ -1354,15 +1445,20 @@ function App() {
 
         <div className="sidebar-top">
 
-          <div className="brand">
+          <button
+            type="button"
+            className="brand brand-button"
+            onClick={() => openPublicView("landing")}
+            aria-label="KeyVault home"
+          >
             <img
               src="/Keyvault.png"
-              alt="KeyVault"
+              alt=""
               className="brand-logo"
             />
 
             <span>KeyVault</span>
-          </div>
+          </button>
 
           <nav aria-label="Primary">
 
@@ -1413,6 +1509,24 @@ function App() {
                   {item.label}
                 </button>
               ))}
+
+            </div>
+
+
+            <div className="nav-group">
+
+              <span className="nav-label">
+                Resources
+              </span>
+
+              <button
+                type="button"
+                className="nav-item"
+                onClick={() => openPublicView("docs")}
+              >
+                <Icon name="book" size={16} />
+                Documentation
+              </button>
 
             </div>
 
@@ -2935,6 +3049,684 @@ function EmptyState({
           {action}
         </div>
       )}
+
+    </div>
+  )
+}
+
+
+/* -------------------------------------------------------
+   PUBLIC LANDING PAGE (logged-out visitors)
+------------------------------------------------------- */
+
+function LandingPage({
+  authenticated,
+  onHome,
+  onDocs,
+  onSignIn,
+  onGetStarted,
+  onDashboard
+}) {
+  const previewKeys = [
+    {
+      name: "Billing service",
+      environment: "Production",
+      scopes: ["Read", "Write"],
+      status: "Active",
+      tone: "active"
+    },
+    {
+      name: "Analytics export",
+      environment: "Development",
+      scopes: ["Read"],
+      status: "Expiring soon",
+      tone: "expiring"
+    },
+    {
+      name: "Legacy webhook",
+      environment: "Production",
+      scopes: ["Read", "Delete"],
+      status: "Revoked",
+      tone: "revoked"
+    }
+  ]
+
+  return (
+    <div className="landing" id="top">
+
+      <PublicNav
+        current="landing"
+        authenticated={authenticated}
+        onHome={onHome}
+        onDocs={onDocs}
+        onSignIn={onSignIn}
+        onGetStarted={onGetStarted}
+        onDashboard={onDashboard}
+      />
+
+
+      <main className="landing-hero">
+        <div className="landing-hero-inner">
+
+          <div className="landing-copy">
+
+            <span className="landing-eyebrow">
+              <Icon name="key" size={14} />
+              API key management
+            </span>
+
+            <h1>
+              Every API key,{" "}
+              <mark>under control.</mark>
+            </h1>
+
+            <p className="landing-lede">
+              Create scoped keys with expirations, rotate or revoke
+              them when plans change and keep an audit trail of
+              every sensitive action.
+            </p>
+
+            <div className="landing-cta">
+              {authenticated ? (
+                <>
+                  <button
+                    type="button"
+                    className="landing-btn landing-btn-primary"
+                    onClick={onDashboard}
+                  >
+                    Go to dashboard
+                  </button>
+
+                  <button
+                    type="button"
+                    className="landing-btn landing-btn-secondary"
+                    onClick={onDocs}
+                  >
+                    Read the documentation
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="landing-btn landing-btn-primary"
+                    onClick={onGetStarted}
+                  >
+                    Create your account
+                  </button>
+
+                  <button
+                    type="button"
+                    className="landing-btn landing-btn-secondary"
+                    onClick={onSignIn}
+                  >
+                    Sign in
+                  </button>
+                </>
+              )}
+            </div>
+
+            <p className="landing-assurance">
+              <Icon name="shield" size={15} />
+              Keys are stored encrypted and revealed only after you
+              confirm your account password.
+            </p>
+
+          </div>
+
+
+          <div className="landing-visual" aria-hidden="true">
+
+            <div className="landing-vault">
+
+              <div className="landing-vault-bar">
+                <span className="landing-vault-title">
+                  <Icon name="key" size={14} />
+                  API Keys
+                </span>
+
+                <span className="landing-sample">
+                  Sample preview
+                </span>
+              </div>
+
+              <div className="landing-vault-list">
+                {previewKeys.map((item) => (
+                  <div
+                    className="landing-vault-row"
+                    key={item.name}
+                  >
+                    <div className="landing-vault-name">
+                      <strong>{item.name}</strong>
+                      <code>kv_••••••••••••••••</code>
+                    </div>
+
+                    <div className="landing-vault-meta">
+                      <span className="landing-chip">
+                        {item.environment}
+                      </span>
+
+                      {item.scopes.map((scope) => (
+                        <span
+                          className={`landing-chip landing-chip-scope ${
+                            scope === "Delete"
+                              ? "landing-chip-danger"
+                              : ""
+                          }`}
+                          key={scope}
+                        >
+                          {scope}
+                        </span>
+                      ))}
+                    </div>
+
+                    <span
+                      className={`landing-status landing-status-${item.tone}`}
+                    >
+                      <span className="landing-status-dot" />
+                      {item.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="landing-vault-foot">
+                <Icon name="clock" size={14} />
+                Rotate, revoke and review activity from one place.
+              </div>
+
+            </div>
+
+            <div className="landing-reveal">
+              <div className="landing-reveal-icon">
+                <Icon name="shield" size={16} />
+              </div>
+
+              <div className="landing-reveal-text">
+                <strong>Reveal key</strong>
+                <span>Confirm your account password</span>
+              </div>
+
+              <span className="landing-reveal-dots">
+                ••••••••
+              </span>
+            </div>
+
+          </div>
+
+        </div>
+      </main>
+
+
+      <footer className="landing-footer">
+        <a
+          className="landing-footer-link"
+          href={GITHUB_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+          </svg>
+
+          GitHub
+        </a>
+      </footer>
+
+    </div>
+  )
+}
+
+
+/* -------------------------------------------------------
+   PUBLIC NAVIGATION (shared by landing and documentation)
+------------------------------------------------------- */
+
+function PublicNav({
+  current,
+  authenticated,
+  onHome,
+  onDocs,
+  onSignIn,
+  onGetStarted,
+  onDashboard
+}) {
+  return (
+    <header className="landing-nav">
+      <div className="landing-nav-inner">
+
+        <button
+          type="button"
+          className="landing-brand"
+          onClick={onHome}
+          aria-label="KeyVault home"
+        >
+          <img
+            src="/Keyvault.png"
+            alt=""
+            className="brand-logo"
+          />
+
+          <span>KeyVault</span>
+        </button>
+
+        <nav className="landing-nav-actions" aria-label="Public">
+          <button
+            type="button"
+            className={`landing-link ${
+              current === "docs" ? "landing-link-active" : ""
+            }`}
+            onClick={onDocs}
+            aria-current={current === "docs" ? "page" : undefined}
+          >
+            <span className="landing-link-long">Documentation</span>
+            <span className="landing-link-short">Docs</span>
+          </button>
+
+          {authenticated ? (
+            <button
+              type="button"
+              className="landing-btn landing-btn-primary landing-btn-sm"
+              onClick={onDashboard}
+            >
+              Dashboard
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="landing-link"
+                onClick={onSignIn}
+              >
+                Sign in
+              </button>
+
+              <button
+                type="button"
+                className="landing-btn landing-btn-primary landing-btn-sm"
+                onClick={onGetStarted}
+              >
+                Get started
+              </button>
+            </>
+          )}
+        </nav>
+
+      </div>
+    </header>
+  )
+}
+
+
+/* -------------------------------------------------------
+   DOCUMENTATION PAGE
+------------------------------------------------------- */
+
+const DOC_SECTIONS = [
+  { id: "getting-started", label: "Getting started" },
+  { id: "creating-keys", label: "Creating and managing keys" },
+  { id: "environments-scopes", label: "Environments and scopes" },
+  { id: "authenticating", label: "Authenticating requests" },
+  { id: "lifecycle", label: "Expiration, rotation, revocation" },
+  { id: "usage-audit", label: "Usage, rate limits and audit logs" },
+  { id: "revealing", label: "Revealing a stored key" }
+]
+
+
+function DocSection({ id, title, children }) {
+  return (
+    <section className="docs-section" id={id}>
+      <h2>{title}</h2>
+      {children}
+    </section>
+  )
+}
+
+
+function DocsPage({
+  authenticated,
+  onHome,
+  onDocs,
+  onSignIn,
+  onGetStarted,
+  onDashboard
+}) {
+  const scrollToSection = (id) => {
+    const element = document.getElementById(id)
+
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" })
+    }
+  }
+
+  return (
+    <div className="landing docs" id="top">
+
+      <PublicNav
+        current="docs"
+        authenticated={authenticated}
+        onHome={onHome}
+        onDocs={onDocs}
+        onSignIn={onSignIn}
+        onGetStarted={onGetStarted}
+        onDashboard={onDashboard}
+      />
+
+      <main className="docs-inner">
+
+        <aside className="docs-toc" aria-label="On this page">
+          <span className="docs-toc-label">On this page</span>
+
+          <div className="docs-toc-list">
+            {DOC_SECTIONS.map((section) => (
+              <button
+                type="button"
+                key={section.id}
+                onClick={() => scrollToSection(section.id)}
+              >
+                {section.label}
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <article className="docs-content">
+
+          <button
+            type="button"
+            className="docs-back"
+            onClick={onHome}
+          >
+            ← Back to home
+          </button>
+
+          <header className="docs-header">
+            <span className="landing-eyebrow">
+              <Icon name="key" size={14} />
+              Documentation
+            </span>
+
+            <h1>Using KeyVault</h1>
+
+            <p>
+              KeyVault is a dashboard for creating, scoping, rotating
+              and auditing API keys. This guide covers setting up an
+              account, managing keys and authenticating requests with
+              the <code>X-API-Key</code> header.
+            </p>
+          </header>
+
+
+          <DocSection
+            id="getting-started"
+            title="Getting started"
+          >
+            <ol>
+              <li>
+                Choose <strong>Get started</strong> to create an
+                account. Usernames are 3–20 characters using letters,
+                numbers and underscores, and KeyVault checks whether
+                the name is available as you type.
+              </li>
+
+              <li>
+                Pick a password. A strong one, with upper and lower
+                case letters, numbers and special characters, is
+                recommended.
+              </li>
+
+              <li>
+                Sign in with your username and password. You land on
+                the dashboard, which summarizes your keys, recent
+                requests and recent security activity.
+              </li>
+            </ol>
+
+            <p>
+              Sign-in uses an HttpOnly session cookie, and reloading
+              the page while signed in restores your session. Use the
+              sign-out button at the bottom of the sidebar to end it.
+            </p>
+          </DocSection>
+
+
+          <DocSection
+            id="creating-keys"
+            title="Creating and managing API keys"
+          >
+            <ol>
+              <li>
+                Open <strong>Dashboard</strong> or{" "}
+                <strong>API Keys</strong> and select{" "}
+                <strong>Create API key</strong>.
+              </li>
+
+              <li>
+                Enter a key name that describes its purpose, for
+                example "Billing service".
+              </li>
+
+              <li>
+                Choose an environment, an expiration and the
+                permissions the key needs.
+              </li>
+
+              <li>
+                Select <strong>Create API key</strong>. The new key is
+                shown in a dialog and hides itself after 30 seconds, so
+                copy it straight away.
+              </li>
+            </ol>
+
+            <p>
+              The <strong>API Keys</strong> page lists every key with
+              its environment, status, scopes and expiry. You can
+              filter by name, status and environment, and sort by most
+              recent, oldest, name or soonest to expire. Each row has{" "}
+              <strong>Reveal</strong> and a menu with{" "}
+              <strong>Rotate</strong> and <strong>Revoke</strong>.
+            </p>
+
+            <p>
+              The name, environment, scopes and expiry are chosen when
+              the key is created. To replace a revoked or expired key,
+              create a new one.
+            </p>
+          </DocSection>
+
+
+          <DocSection
+            id="environments-scopes"
+            title="Environments, scopes and permissions"
+          >
+            <p>
+              Each key has one <strong>environment</strong>,{" "}
+              <code>development</code> (the default) or{" "}
+              <code>production</code>, shown as a badge on the key.
+            </p>
+
+            <p>
+              Each key also has one or more <strong>scopes</strong>:{" "}
+              <code>read</code>, <code>write</code> and{" "}
+              <code>delete</code>. At least one is required and{" "}
+              <code>read</code> is selected by default. The{" "}
+              <code>delete</code> scope is highlighted in red. Start
+              with the minimum permissions the key needs.
+            </p>
+
+            <p>
+              The environment and scopes are saved with the key when it
+              is created and displayed with it on the API Keys page.
+            </p>
+          </DocSection>
+
+
+          <DocSection
+            id="authenticating"
+            title="Authenticating API requests"
+          >
+            <p>
+              Send the key in the <code>X-API-Key</code> header of each
+              request. For example, with curl:
+            </p>
+
+            <pre className="docs-code">
+              <code>
+                {`curl -H "X-API-Key: YOUR_API_KEY" "<your-protected-endpoint>"`}
+              </code>
+            </pre>
+
+            <p>
+              Replace <code>YOUR_API_KEY</code> with a key from the
+              dashboard, and the URL with a protected endpoint on your
+              KeyVault backend. Requests authenticated with a key are
+              recorded and appear on the Usage page.
+            </p>
+
+            <p>
+              Keep keys out of source control and client-side code. The
+              dashboard itself signs in with a session cookie, not an
+              API key.
+            </p>
+          </DocSection>
+
+
+          <DocSection
+            id="lifecycle"
+            title="Expiration, rotation and revocation"
+          >
+            <p>
+              <strong>Expiration.</strong> Choose 90 days (the
+              default), 30 days, 7 days or no expiration. Keys with no
+              expiration show a warning because they need more manual
+              management. A key's status is{" "}
+              <strong>Active</strong>,{" "}
+              <strong>Expiring soon</strong> (7 days or fewer
+              remaining), <strong>Expired</strong> or{" "}
+              <strong>Revoked</strong>.
+            </p>
+
+            <p>
+              <strong>Rotation.</strong> Open the row menu and choose{" "}
+              <strong>Rotate</strong>. The current key stops working
+              and a new key is generated and shown once. The name,
+              environment and permissions stay with the key. Rotate is
+              available for Active and Expiring soon keys.
+            </p>
+
+            <p>
+              <strong>Revocation.</strong> Open the row menu and choose{" "}
+              <strong>Revoke</strong>. This disables the credential, so
+              requests using it are no longer accepted. A revoked key
+              cannot be revoked again.
+            </p>
+          </DocSection>
+
+
+          <DocSection
+            id="usage-audit"
+            title="Usage tracking, rate limits and audit logs"
+          >
+            <p>
+              <strong>Usage</strong> lists recorded requests with the
+              time, the name of the key used and the endpoint. The
+              dashboard chart counts those records per day for the last
+              7 days.
+            </p>
+
+            <p>
+              <strong>Audit Logs</strong> lists security-relevant
+              actions on your account and keys, with the action,
+              details, time and the key ID when one applies. The
+              dashboard shows the five most recent. Creating, rotating,
+              revealing and revoking keys are the actions the dashboard
+              describes.
+            </p>
+
+            <p>
+              <strong>Rate limits.</strong> Any request limits are
+              applied by your KeyVault backend. The dashboard does not
+              display or configure them, so check your backend settings
+              for the values in effect.
+            </p>
+          </DocSection>
+
+
+          <DocSection
+            id="revealing"
+            title="Revealing a stored key"
+          >
+            <ol>
+              <li>
+                Select <strong>Reveal</strong> on a key, either on the
+                API Keys page or under Recent keys on the dashboard.
+              </li>
+
+              <li>
+                Enter your account password and select{" "}
+                <strong>Reveal key</strong>.
+              </li>
+
+              <li>
+                The key is shown for 30 seconds with{" "}
+                <strong>Copy</strong> and <strong>Hide</strong>{" "}
+                buttons.
+              </li>
+            </ol>
+
+            <p>
+              Each reveal is recorded in your audit log. Keys are
+              stored as a hash for verification plus an encrypted copy
+              for recovery, and a revealed key is held only in memory,
+              not in browser storage.
+            </p>
+
+            <p>
+              Treat every revealed key as sensitive: hiding the dialog
+              does not recall a value you have already copied.
+            </p>
+          </DocSection>
+
+
+          <div className="docs-end">
+            {authenticated ? (
+              <button
+                type="button"
+                className="landing-btn landing-btn-primary"
+                onClick={onDashboard}
+              >
+                Go to dashboard
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="landing-btn landing-btn-primary"
+                  onClick={onGetStarted}
+                >
+                  Create your account
+                </button>
+
+                <button
+                  type="button"
+                  className="landing-btn landing-btn-secondary"
+                  onClick={onSignIn}
+                >
+                  Sign in
+                </button>
+              </>
+            )}
+          </div>
+
+        </article>
+
+      </main>
 
     </div>
   )
