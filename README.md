@@ -297,7 +297,3 @@ Potential improvements include:
 - Automated tests and continuous integration.
 - Editable key metadata and expiration settings.
 - Additional security testing and review.
-
-## License
-
-No license has been specified for this repository. All rights remain with the copyright holder unless a license is added.
