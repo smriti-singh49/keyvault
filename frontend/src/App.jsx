@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 
-const API = "http://localhost:8000"
+const API = "https://keyvault-api-backend.onrender.com"
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: "grid" },
