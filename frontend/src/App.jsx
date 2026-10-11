@@ -631,7 +631,7 @@ function App() {
     if (!/^[a-zA-Z0-9_]+$/.test(value)) {
       setUsernameStatus({
         available: false,
-        message: "Use only letters, numbers, and underscores"
+        message: "Use only letters, numbers and underscores"
       })
       return
     }
@@ -1937,7 +1937,7 @@ function App() {
             <p>
               The current key will stop working and a new
               credential will be generated. Existing metadata
-              such as the name, environment, and permissions
+              such as the name, environment and permissions
               will remain associated with the key.
             </p>
 
@@ -2248,7 +2248,7 @@ function Dashboard({
           {recentLogs.length === 0 ? (
             <EmptyState
               title="No security activity"
-              description="Actions such as creation, rotation, reveal, and revocation will appear here."
+              description="Actions such as creation, rotation, reveal and revocation will appear here."
             />
           ) : (
             <div className="activity-list">
@@ -3471,7 +3471,7 @@ function DocsPage({
               <li>
                 Choose <strong>Get started</strong> to create an
                 account. Usernames are 3–20 characters using letters,
-                numbers and underscores, and KeyVault checks whether
+                numbers and underscores and KeyVault checks whether
                 the name is available as you type.
               </li>
 
@@ -3489,7 +3489,7 @@ function DocsPage({
             </ol>
 
             <p>
-              Sign-in uses an HttpOnly session cookie, and reloading
+              Sign-in uses an HttpOnly session cookie and reloading
               the page while signed in restores your session. Use the
               sign-out button at the bottom of the sidebar to end it.
             </p>
@@ -3527,7 +3527,7 @@ function DocsPage({
             <p>
               The <strong>API Keys</strong> page lists every key with
               its environment, status, scopes and expiry. You can
-              filter by name, status and environment, and sort by most
+              filter by name, status and environment and sort by most
               recent, oldest, name or soonest to expire. Each row has{" "}
               <strong>Reveal</strong> and a menu with{" "}
               <strong>Rotate</strong> and <strong>Revoke</strong>.
@@ -3584,7 +3584,7 @@ function DocsPage({
 
             <p>
               Replace <code>YOUR_API_KEY</code> with a key from the
-              dashboard, and the URL with a protected endpoint on your
+              dashboard and the URL with a protected endpoint on your
               KeyVault backend. Requests authenticated with a key are
               recorded and appear on the Usage page.
             </p>
@@ -3683,7 +3683,7 @@ function DocsPage({
             <p>
               Each reveal is recorded in your audit log. Keys are
               stored as a hash for verification plus an encrypted copy
-              for recovery, and a revealed key is held only in memory,
+              for recovery and a revealed key is held only in memory,
               not in browser storage.
             </p>
 

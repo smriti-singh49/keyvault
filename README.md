@@ -1,6 +1,6 @@
 # KeyVault
 
-**KeyVault** is an API key management and usage platform for developers. It provides a centralized dashboard to create, manage, rotate, revoke, and monitor API keys with configurable scopes, expiration, usage tracking, and audit logs.
+**KeyVault** is an API key management and usage platform for developers. It provides a centralized dashboard to create, manage, rotate, revoke and monitor API keys with configurable scopes, expiration, usage tracking and audit logs.
 
 ## Live Demo
 
@@ -18,13 +18,13 @@
 - **Secure Key Storage:** Store API key hashes for verification and encrypted copies for authorized recovery.
 - **Password-Confirmed Reveal:** Require password confirmation before revealing a stored API key.
 - **Expiration Management:** Configure optional key expiration.
-- **Scopes and Environments:** Associate keys with `read`, `write`, and `delete` scopes and development or production environments.
+- **Scopes and Environments:** Associate keys with `read`, `write` and `delete` scopes and development or production environments.
 - **Key Rotation and Revocation:** Rotate keys or revoke them to prevent further use.
 - **API Key Authentication:** Authenticate requests using the `X-API-Key` HTTP header.
 - **Usage Tracking:** Record API key requests and display usage information.
 - **Rate Limiting:** Apply a fixed-window limit of five requests per minute to API-key-authenticated endpoints.
-- **Audit Logs:** Record key creation, reveal attempts, rotation, and revocation.
-- **Dashboard:** View API keys, key statuses, usage statistics, and recent security activity.
+- **Audit Logs:** Record key creation, reveal attempts, rotation and revocation.
+- **Dashboard:** View API keys, key statuses, usage statistics and recent security activity.
 - **Landing and Documentation Pages:** Explore the platform and its functionality through the frontend.
 
 ## Technology Stack
@@ -45,7 +45,7 @@
 
 ## Architecture
 
-KeyVault separates the frontend, backend, and database into independently deployed components.
+KeyVault separates the frontend, backend and database into independently deployed components.
 
 ```mermaid
 flowchart LR
@@ -236,7 +236,7 @@ Replace `YOUR_API_KEY` with your own valid key. Never commit real API keys to so
 
 Common responses include:
 
-- `401 Unauthorized` — invalid, expired, or revoked credentials.
+- `401 Unauthorized` — invalid, expired or revoked credentials.
 - `403 Forbidden` — insufficient scope for an operation.
 - `429 Too Many Requests` — the API key has exceeded its configured rate limit.
 
@@ -252,7 +252,7 @@ KeyVault implements several security mechanisms:
 - CORS is configured using the `FRONTEND_URL` environment variable.
 - API key hashes are used for verification, while encrypted copies support authorized key recovery.
 - Revealing a stored API key requires password confirmation.
-- Key creation, reveal attempts, rotation, and revocation are recorded in audit logs.
+- Key creation, reveal attempts, rotation and revocation are recorded in audit logs.
 - User-specific queries are filtered by the authenticated user's ID.
 - Sensitive configuration is loaded from environment variables.
 
@@ -270,7 +270,7 @@ The frontend communicates with the backend over HTTPS. The backend connects to S
 
 Configure the backend's environment variables in Render, including `ENVIRONMENT=production` and `FRONTEND_URL` set to the deployed frontend origin.
 
-Never expose database credentials, JWT secrets, encryption keys, or other private configuration in frontend code.
+Never expose database credentials, JWT secrets, encryption keys or other private configuration in frontend code.
 
 ## Known Limitations
 
